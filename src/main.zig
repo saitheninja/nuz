@@ -1,5 +1,17 @@
 const std = @import("std");
 
+const nix_profiles_path = "/nix/var/nix/profiles";
+
+// https://nix.dev/manual/nix/2.22/command-ref/new-cli/nix3-store-diff-closures
+// show diffs of all profiles:
+// `nix profile diff-closures --profile /nix/var/nix/profiles/system`
+//
+// https://nix.dev/manual/nix/2.22/command-ref/new-cli/nix3-profile-diff-closures
+// diff booted and current (so only useful after an update):
+// `nix store diff-closures /run/booted-system /run/current-system`
+// compare specific profiles:
+// `nix store diff-closures /nix/var/nix/profiles/system-655-link /nix/var/nix/profiles/system-658-link`
+
 pub fn main() !void {
     // Prints to stderr (it's a shortcut based on `std.io.getStdErr()`)
     std.debug.print("All your {s} are belong to us.\n", .{"codebase"});
