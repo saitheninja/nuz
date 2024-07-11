@@ -37,9 +37,24 @@ pub fn main() !void {
     // write buffer contents to file using writeAll(), which is a straight copy of bytes
     // https://ziglang.org/documentation/0.13.0/std/#src/std/io/buffered_writer.zig
     try bw.flush();
-
     std.debug.print("After flush.\n", .{});
 
+    var dir = try std.fs.openDirAbsolute(nix_profiles_path, .{ .iterate = true });
+    defer dir.close();
+
+    var iter = dir.iterate();
+    while (try iter.next()) |entry| {
+        try bw_writer.print("{s}\n", .{entry.name});
+    }
+
+    try bw.flush();
+    std.debug.print("After dir flush.\n", .{});
+
+    // sort list
+    // get most recent ()
+    // get profile to diff with most recent
+    // current is /nix/var/nix/profiles/system
+}
 
 test "always succeeds" {
     try expect(true);
