@@ -1,4 +1,5 @@
 const std = @import("std");
+const expect = std.testing.expect;
 
 const nix_profiles_path = "/nix/var/nix/profiles";
 
@@ -38,11 +39,44 @@ pub fn main() !void {
     try bw.flush();
 
     std.debug.print("After flush.\n", .{});
+
+
+test "always succeeds" {
+    try expect(true);
 }
+
+// test "always fails" {
+//     try expect(false);
+// }
 
 test "simple test" {
     var list = std.ArrayList(i32).init(std.testing.allocator);
     defer list.deinit(); // try commenting this out and see if zig detects the memory leak!
     try list.append(42);
     try std.testing.expectEqual(@as(i32, 42), list.pop());
+}
+
+// https://zig.guide/standard-library/filesystem/
+test "make dir and read files" {
+    try std.fs.cwd().makeDir("test-tmp");
+    var iter_dir = try std.fs.cwd().openDir(
+        "test-tmp",
+        .{ .iterate = true },
+    );
+    defer {
+        iter_dir.close();
+        std.fs.cwd().deleteTree("test-tmp") catch unreachable;
+    }
+
+    _ = try iter_dir.createFile("x", .{});
+    _ = try iter_dir.createFile("y", .{});
+    _ = try iter_dir.createFile("z", .{});
+
+    var file_count: usize = 0;
+    var iter = iter_dir.iterate();
+    while (try iter.next()) |entry| {
+        if (entry.kind == .file) file_count += 1;
+    }
+
+    try expect(file_count == 3);
 }
