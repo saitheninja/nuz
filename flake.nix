@@ -1,6 +1,5 @@
 {
   description = "Zig 0.13.0 development environment";
-  # `nix develop -c $SHELL` otherwise it defaults to bash
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/655a58a72a6601292512670343087c2d75d859c1";
@@ -29,8 +28,12 @@
         # AN_ENVIRONMENT_VARIABLE = "something";
 
         # execute when entering the shell environment with `nix develop`
+        # `exec` replaces the current shell process with a new one 
+        # `exec $SHELL` switches from default bash to configured user shell
+        # read path to shell from running processes: `readlink /proc/$$/exe`
         shellHook = ''
           zig version
+          exec $SHELL
         '';
       };
     };
