@@ -15,9 +15,6 @@ const test_allocator = std.testing.allocator;
 // `nix store diff-closures /nix/var/nix/profiles/system-655-link /nix/var/nix/profiles/system-658-link`
 
 pub fn main() !void {
-    // Prints to stderr (it's a shortcut based on `std.io.getStdErr()`)
-    std.debug.print("All your {s} are belong to us.\n", .{"codebase"});
-
     // stdout is for the actual output of your application
     // stdin, stdout and stderr are data streams that can be treated as files
     const stdout_file_handle = std.io.getStdOut();
@@ -29,16 +26,18 @@ pub fn main() !void {
     var bw = std.io.bufferedWriter(stdout_writer);
     const bw_writer = bw.writer();
 
+    // format text and add it to the buffer
     // print(format, args) calls std.fmt.format for placeholder substitutions
     // https://ziglang.org/documentation/0.13.0/std/#std.io.Writer.print
     // https://ziglang.org/documentation/0.13.0/std/#std.fmt.format
-    // format text and add it to buffer
-    try bw_writer.print("Run `zig build test` to run the tests.\n", .{});
-
+    try bw_writer.print("{s}\n", .{"Print into buffer."});
+    // prints to stderr (it's a shortcut based on `std.io.getStdErr()`)
+    std.debug.print("{s} flush.\n", .{"Before"});
     // write buffer contents to file using writeAll(), which is a straight copy of bytes
     // https://ziglang.org/documentation/0.13.0/std/#src/std/io/buffered_writer.zig
     try bw.flush();
-    std.debug.print("After flush.\n", .{});
+    std.debug.print("{s} flush.\n", .{"After"});
+
 
     var dir = try std.fs.openDirAbsolute(nix_profiles_path, .{ .iterate = true });
     defer dir.close();
@@ -51,7 +50,6 @@ pub fn main() !void {
     try bw.flush();
     std.debug.print("After dir flush.\n", .{});
 
-    try explain_strings();
     // sort list
     // get most recent ()
     // get profile to diff with most recent
