@@ -1,8 +1,11 @@
 const std = @import("std");
 const expect = std.testing.expect;
-
-const nix_profiles_path = "/nix/var/nix/profiles";
 const test_allocator = std.testing.allocator;
+const openDirAbsolute = std.fs.openDirAbsolute;
+
+const nixos_profiles_path = "/nix/var/nix/profiles";
+const nixos_booted_system_path = "/run/booted-system";
+const nixos_current_system_path = "/run/current-system";
 
 // https://nix.dev/manual/nix/2.22/command-ref/new-cli/nix3-store-diff-closures
 // show diffs of all profiles:
@@ -38,11 +41,11 @@ pub fn main() !void {
     try bw.flush();
     std.debug.print("{s} flush.\n", .{"After"});
 
+    var profiles_dir = try openDirAbsolute(nixos_profiles_path, .{ .iterate = true });
+    defer profiles_dir.close();
 
-    var dir = try std.fs.openDirAbsolute(nix_profiles_path, .{ .iterate = true });
-    defer dir.close();
 
-    var iter = dir.iterate();
+    var iter = profiles_dir.iterate();
     while (try iter.next()) |entry| {
         try bw_writer.print("{s}\n", .{entry.name});
     }
