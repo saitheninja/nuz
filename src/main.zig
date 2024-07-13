@@ -47,6 +47,14 @@ pub fn main() !void {
 
     var iter = profiles_dir.iterate();
     while (try iter.next()) |entry| {
+        if (entry.kind != .sym_link) {
+            continue; // jump to next iteration
+            // break; // break out of loop
+        }
+
+        // system -> sym-link to current profile
+        // system-{no}-link -> sym-link to /nix/store/{...rest}
+
         try bw_writer.print("{s}\n", .{entry.name});
     }
 
