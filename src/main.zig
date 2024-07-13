@@ -50,6 +50,7 @@ pub fn main() !void {
     try bw.flush();
     std.debug.print("After dir flush.\n", .{});
 
+    try explain_strings();
     // sort list
     // get most recent ()
     // get profile to diff with most recent
@@ -94,4 +95,29 @@ test "make dir and read files" {
     }
 
     try expect(file_count == 3);
+}
+
+fn explain_strings() !void {
+    // a string is a slice of bytes
+    // 1 byte = 8 bits, so type is u8 - unsigned 8-bit integer
+    var hi: []const u8 = "hi";
+    hi = "hi!";
+    std.debug.print("Type of string: {}\n", .{@TypeOf(hi)}); // []const u8
+    // slice of const u8
+
+    // String literals are constant single-item pointers to null-terminated byte arrays
+    // null-terminated (a.k.a sentinel-terminated) means it ends with zero
+    // standard practice in C is for character arrays to mark the end of the array with a zero character
+    std.debug.print("Type of string literal: {}\n", .{@TypeOf("hello there")}); // *const [11:0]u8
+    // const single-item pointer to array of u8s, with length 11, with sentinel 0
+    const hello = "Hello";
+    std.debug.print("Type of string literal: {}\n", .{@TypeOf(hello)}); // *const [5:0]u8
+    // const single-item pointer to array of u8s, with length 5, with sentinel 0
+
+    // Unicode code point literals use single quotes
+    const ziguana = '🦎';
+    std.debug.print("Type of ziguana: {}\n", .{@TypeOf(ziguana)}); // comptime_int, same as integer literals
+
+    // print unicode
+    std.debug.print("{u} Zig! {u}\n", .{ ziguana, '⚡' });
 }
