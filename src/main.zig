@@ -2,6 +2,7 @@ const std = @import("std");
 const expect = std.testing.expect;
 
 const nix_profiles_path = "/nix/var/nix/profiles";
+const test_allocator = std.testing.allocator;
 
 // https://nix.dev/manual/nix/2.22/command-ref/new-cli/nix3-store-diff-closures
 // show diffs of all profiles:
@@ -57,20 +58,20 @@ pub fn main() !void {
     // current is /nix/var/nix/profiles/system
 }
 
-test "always succeeds" {
-    try expect(true);
-}
-
-// test "always fails" {
-//     try expect(false);
-// }
-
 test "simple test" {
-    var list = std.ArrayList(i32).init(std.testing.allocator);
+    var list = std.ArrayList(i32).init(test_allocator);
     defer list.deinit(); // try commenting this out and see if zig detects the memory leak!
     try list.append(42);
     try std.testing.expectEqual(@as(i32, 42), list.pop());
 }
+
+// https://zig.guide/getting-started/running-tests/
+test "always succeeds" {
+    try expect(true);
+}
+// test "always fails" {
+//     try expect(false);
+// }
 
 // https://zig.guide/standard-library/filesystem/
 test "make dir and read files" {
