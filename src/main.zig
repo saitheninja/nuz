@@ -41,10 +41,12 @@ pub fn main() !void {
     try bw.flush();
     std.debug.print("{s} flush.\n", .{"After"});
 
-    var profiles_dir = try openDirAbsolute(nixos_profiles_path, .{ .iterate = true });
+
+    var profiles_dir = openDirAbsolute(nixos_profiles_path, .{ .iterate = true }) catch |err| {
+        std.debug.print("unable to open profiles directory '{s}': {s}\n", .{ nixos_profiles_path, @errorName(err) });
+        std.process.exit(1); // exit with error
+    };
     defer profiles_dir.close();
-
-
     var iter = profiles_dir.iterate();
     while (try iter.next()) |entry| {
         if (entry.kind != .sym_link) {
