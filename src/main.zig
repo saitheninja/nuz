@@ -2,16 +2,25 @@ const std = @import("std");
 const expect = std.testing.expect;
 const test_allocator = std.testing.allocator;
 const openDirAbsolute = std.fs.openDirAbsolute;
+// const fatal = std.zig.fatal;
 
 const nixos_profiles_path = "/nix/var/nix/profiles";
+// current: `/nix/var/nix/profiles/system`
+// newest: `/nix/var/nix/profiles/system-{biggest-number}-link`
+// oldest: `/nix/var/nix/profiles/system-{smallest-number}-link`
+// `system` -> sym-link to current profile
+// `system-{number}-link` -> sym-link to `/nix/store/{...rest}`
+const profile_trim_left = "system-";
+const profile_trim_right = "-link";
+
 const nixos_booted_system_path = "/run/booted-system";
 const nixos_current_system_path = "/run/current-system";
 
-// https://nix.dev/manual/nix/2.22/command-ref/new-cli/nix3-store-diff-closures
+// https://nix.dev/manual/nix/2.22/command-ref/new-cli/nix3-profile-diff-closures
 // show diffs of all profiles:
 // `nix profile diff-closures --profile /nix/var/nix/profiles/system`
-//
-// https://nix.dev/manual/nix/2.22/command-ref/new-cli/nix3-profile-diff-closures
+
+// https://nix.dev/manual/nix/2.22/command-ref/new-cli/nix3-store-diff-closures
 // diff booted and current (so only useful after an update):
 // `nix store diff-closures /run/booted-system /run/current-system`
 // compare specific profiles:
@@ -41,12 +50,19 @@ pub fn main() !void {
     try bw.flush();
     std.debug.print("{s} flush.\n", .{"After"});
 
-
     var profiles_dir = openDirAbsolute(nixos_profiles_path, .{ .iterate = true }) catch |err| {
         std.debug.print("unable to open profiles directory '{s}': {s}\n", .{ nixos_profiles_path, @errorName(err) });
         std.process.exit(1); // exit with error
     };
     defer profiles_dir.close();
+
+    // u8 range: 0-255
+    // u16 range: 0-65535
+    // u32 range: 0-4294967295
+    // u64 range: 0-18446744073709551615
+    var profile_newest: u16 = 0;
+    var profile_oldest: u16 = 65535;
+
     var iter = profiles_dir.iterate();
     while (try iter.next()) |entry| {
         if (entry.kind != .sym_link) {
@@ -54,22 +70,34 @@ pub fn main() !void {
             // break; // break out of loop
         }
 
-        // system -> sym-link to current profile
-        // system-{no}-link -> sym-link to /nix/store/{...rest}
+        var created = entry.name;
+        // try bw_writer.print("{s}\n", .{created});
 
-        try bw_writer.print("{s}\n", .{entry.name});
+        if (!std.mem.startsWith(u8, created, profile_trim_left)) continue;
+        if (!std.mem.endsWith(u8, created, profile_trim_right)) continue;
+
+        created = std.mem.trimLeft(u8, created, profile_trim_left);
+        created = std.mem.trimRight(u8, created, profile_trim_right);
+        // try bw_writer.print("{s}\n", .{created});
+
+        const created_int = try std.fmt.parseUnsigned(u16, created, 10); // base 10
+        try bw_writer.print("{d}\n", .{created_int});
+
+        if (created_int > profile_newest) {
+            profile_newest = created_int;
+        } else if (created_int < profile_oldest) {
+            profile_oldest = created_int;
+        }
     }
 
+    try bw_writer.print("newest: {d}\n", .{profile_newest});
+    try bw_writer.print("oldest: {d}\n", .{profile_oldest});
     try bw.flush();
     std.debug.print("After dir flush.\n", .{});
 
     // var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     // defer gpa.deinit();
     // const allocator = gpa.allocator();
-
-    // get current: /nix/var/nix/profiles/system
-    // get newest: /nix/var/nix/profiles/system-{biggest-number}-link
-    // get oldest: /nix/var/nix/profiles/system-{smallest-number}-link
 }
 
 test "simple test" {
