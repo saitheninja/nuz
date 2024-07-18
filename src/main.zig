@@ -26,6 +26,20 @@ const nixos_current_system_path = "/run/current-system";
 // compare specific profiles:
 // `nix store diff-closures /nix/var/nix/profiles/system-655-link /nix/var/nix/profiles/system-658-link`
 
+const usage =
+    \\
+    \\Usage: nuz [command] [options]
+    \\
+    \\Commands:
+    \\
+    \\  help, -h, --help    Print this help and exit
+    \\
+    \\  diff                Diff closures of oldest -> newest, booted -> current
+    \\  diff -b, --boot     Diff closures of booted -> current
+    \\  diff --old=[number] --new=[number]  Diff closures of oldest -> newest
+    \\
+;
+
 pub fn main() !void {
     const stdout_file_handle = std.io.getStdOut();
     const stdout_writer = stdout_file_handle.writer();
