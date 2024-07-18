@@ -61,10 +61,13 @@ pub fn main() !void {
     try bw.flush();
     std.debug.print("After dir flush.\n", .{});
 
-    // sort list
-    // get most recent ()
-    // get profile to diff with most recent
-    // current is /nix/var/nix/profiles/system
+    // var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    // defer gpa.deinit();
+    // const allocator = gpa.allocator();
+
+    // get current: /nix/var/nix/profiles/system
+    // get newest: /nix/var/nix/profiles/system-{biggest-number}-link
+    // get oldest: /nix/var/nix/profiles/system-{smallest-number}-link
 }
 
 test "simple test" {
