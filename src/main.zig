@@ -92,6 +92,8 @@ pub fn main() !void {
 
     try bw.flush();
     // std.debug.print("After flush.\n", .{});
+
+    try execute_process();
 }
 
 test "simple test" {
@@ -184,4 +186,38 @@ fn explain_printing() !void {
     try bw.flush();
 
     std.debug.print("{s} flush.\n", .{"After"});
+}
+
+// https://renatoathaydes.github.io/zig-common-tasks/
+fn execute_process() !void {
+    // the command to run
+    const argv = [_][]const u8{ "ls", "./" };
+
+    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    const allocator = gpa.allocator();
+
+    // init a child process
+    var proc = std.process.Child.init(&argv, allocator);
+    try proc.spawn();
+
+    // clean up
+    // the process only ends after this call returns
+    // const term = try proc.wait();
+    const terminated_state = try proc.wait();
+    _ = terminated_state;
+
+    // term can be .Exited, .Signal, .Stopped, .Unknown
+    // try std.testing.expectEqual(term, std.process.Child.Term{ .Exited = 0 });
+
+    // const proc = try std.process.Child.run(.{
+    //     .allocator = alloc,
+    //     .argv = &argv,
+    // });
+
+    // consume stdout and stderr into allocated memory
+    // on success, we own the output streams
+    // defer alloc.free(proc.stdout);
+    // defer alloc.free(proc.stderr);
+    //
+    // const term = proc.term;
 }
