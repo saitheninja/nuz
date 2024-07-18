@@ -27,28 +27,11 @@ const nixos_current_system_path = "/run/current-system";
 // `nix store diff-closures /nix/var/nix/profiles/system-655-link /nix/var/nix/profiles/system-658-link`
 
 pub fn main() !void {
-    // stdout is for the actual output of your application
-    // stdin, stdout and stderr are data streams that can be treated as files
     const stdout_file_handle = std.io.getStdOut();
     const stdout_writer = stdout_file_handle.writer();
 
-    // batch writes into a buffer for efficiency
-    // bufferedWriter is 4096 bytes by default
-    // https://ziglang.org/documentation/0.13.0/std/#src/std/io/buffered_writer.zig
     var bw = std.io.bufferedWriter(stdout_writer);
     const bw_writer = bw.writer();
-
-    // format text and add it to the buffer
-    // print(format, args) calls std.fmt.format for placeholder substitutions
-    // https://ziglang.org/documentation/0.13.0/std/#std.io.Writer.print
-    // https://ziglang.org/documentation/0.13.0/std/#std.fmt.format
-    try bw_writer.print("{s}\n", .{"Print into buffer."});
-    // prints to stderr (it's a shortcut based on `std.io.getStdErr()`)
-    std.debug.print("{s} flush.\n", .{"Before"});
-    // write buffer contents to file using writeAll(), which is a straight copy of bytes
-    // https://ziglang.org/documentation/0.13.0/std/#src/std/io/buffered_writer.zig
-    try bw.flush();
-    std.debug.print("{s} flush.\n", .{"After"});
 
     var profiles_dir = openDirAbsolute(nixos_profiles_path, .{ .iterate = true }) catch |err| {
         std.debug.print("unable to open profiles directory '{s}': {s}\n", .{ nixos_profiles_path, @errorName(err) });
@@ -71,17 +54,17 @@ pub fn main() !void {
         }
 
         var created = entry.name;
-        // try bw_writer.print("{s}\n", .{created});
+        // try bw_writer.print("entry.name: {s}\n", .{created});
 
         if (!std.mem.startsWith(u8, created, profile_trim_left)) continue;
         if (!std.mem.endsWith(u8, created, profile_trim_right)) continue;
 
         created = std.mem.trimLeft(u8, created, profile_trim_left);
         created = std.mem.trimRight(u8, created, profile_trim_right);
-        // try bw_writer.print("{s}\n", .{created});
+        // try bw_writer.print("trimmed string: {s}\n", .{created});
 
         const created_int = try std.fmt.parseUnsigned(u16, created, 10); // base 10
-        try bw_writer.print("{d}\n", .{created_int});
+        // try bw_writer.print("parsed uint: {d}\n", .{created_int});
 
         if (created_int > profile_newest) {
             profile_newest = created_int;
@@ -90,14 +73,11 @@ pub fn main() !void {
         }
     }
 
-    try bw_writer.print("newest: {d}\n", .{profile_newest});
-    try bw_writer.print("oldest: {d}\n", .{profile_oldest});
-    try bw.flush();
-    std.debug.print("After dir flush.\n", .{});
+    try bw_writer.print("oldest profile: {d}\n", .{profile_oldest});
+    try bw_writer.print("newest profile: {d}\n", .{profile_newest});
 
-    // var gpa = std.heap.GeneralPurposeAllocator(.{}){};
-    // defer gpa.deinit();
-    // const allocator = gpa.allocator();
+    try bw.flush();
+    // std.debug.print("After flush.\n", .{});
 }
 
 test "simple test" {
@@ -163,4 +143,31 @@ fn explain_strings() !void {
 
     // print unicode
     std.debug.print("{u} Zig! {u}\n", .{ ziguana, '⚡' });
+}
+
+fn explain_printing() !void {
+    // stdin, stdout and stderr are data streams that can be treated as files
+    const stdout_file_handle = std.io.getStdOut();
+    const stdout_writer = stdout_file_handle.writer();
+
+    // batch writes into a buffer for efficiency
+    // bufferedWriter is 4096 bytes (4 kB) by default
+    // https://ziglang.org/documentation/0.13.0/std/#src/std/io/buffered_writer.zig
+    var bw = std.io.bufferedWriter(stdout_writer);
+    const bw_writer = bw.writer();
+
+    // format text and add it to the buffer
+    // print(format, args) calls std.fmt.format for placeholder substitutions
+    // https://ziglang.org/documentation/0.13.0/std/#std.io.Writer.print
+    // https://ziglang.org/documentation/0.13.0/std/#std.fmt.format
+    try bw_writer.print("{s}\n", .{"Print into buffer."});
+
+    // prints to stderr (it's a shortcut based on `std.io.getStdErr()`)
+    std.debug.print("{s} flush.\n", .{"Before"});
+
+    // write buffer contents to file using writeAll(), which is a straight copy of bytes
+    // https://ziglang.org/documentation/0.13.0/std/#src/std/io/buffered_writer.zig
+    try bw.flush();
+
+    std.debug.print("{s} flush.\n", .{"After"});
 }
