@@ -163,7 +163,7 @@ fn execute_process(profile1: u16, profile2: u16) !void {
     // the process only ends after this call returns
     // const term = try proc.wait();
     const terminated_state = try proc.wait();
-    _ = terminated_state;
+    std.debug.print("terminated state: {any}\n", .{terminated_state});
 
     // term can be .Exited, .Signal, .Stopped, .Unknown
     // try std.testing.expectEqual(term, std.process.Child.Term{ .Exited = 0 });
