@@ -3,7 +3,7 @@ const expect = std.testing.expect;
 const test_allocator = std.testing.allocator;
 const openDirAbsolute = std.fs.openDirAbsolute;
 
-const nixos_profiles_path = "/nix/var/nix/profiles";
+const nixos_profiles_path = "/nix/var/nix/profiles/";
 // current: `/nix/var/nix/profiles/system`
 // newest: `/nix/var/nix/profiles/system-{biggest-number}-link`
 // oldest: `/nix/var/nix/profiles/system-{smallest-number}-link`
@@ -122,27 +122,28 @@ test "make dir and read files" {
 
 // https://renatoathaydes.github.io/zig-common-tasks/
 fn execute_process(profile1: u16, profile2: u16) !void {
-    // std.debug.print("profile1: {d}\n", .{profile1});
-    // std.debug.print("profile2: {d}\n", .{profile2});
-
+    // nixos_profiles_path, // 22 bytes
+    // profile_trim_left, // 7 bytes
+    // profile2, // 1 - ?? bytes
+    // profile_trim_right, // 5 bytes
     var buf1: [50]u8 = undefined;
-    const profile_path1 = try std.fmt.bufPrint(&buf1, "{s}/{s}{d}{s}", .{
+    const profile_path1 = try std.fmt.bufPrint(&buf1, "{s}{s}{d}{s}", .{
         nixos_profiles_path,
         profile_trim_left,
         profile1,
         profile_trim_right,
     });
     var buf2: [50]u8 = undefined;
-    const profile_path2 = try std.fmt.bufPrint(&buf2, "{s}/{s}{d}{s}", .{
+    const profile_path2 = try std.fmt.bufPrint(&buf2, "{s}{s}{d}{s}", .{
         nixos_profiles_path,
         profile_trim_left,
         profile2,
         profile_trim_right,
     });
-    std.debug.print("buf1: {s}\n", .{buf1});
-    std.debug.print("buf2: {s}\n", .{buf2});
-    std.debug.print("path1: {s}\n", .{profile_path1});
-    std.debug.print("path2: {s}\n", .{profile_path2});
+    // std.debug.print("buf1: {s}\n", .{buf1});
+    // std.debug.print("buf2: {s}\n", .{buf2});
+    // std.debug.print("path1: {s}\n", .{profile_path1});
+    // std.debug.print("path2: {s}\n", .{profile_path2});
 
     // the command to run
     // const argv = [_][]const u8{ "ls", "./" };
