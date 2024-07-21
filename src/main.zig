@@ -92,7 +92,7 @@ pub fn main() !void {
     try bw.flush();
     // std.debug.print("After flush.\n", .{});
 
-    try execute_process();
+    try execute_process(profile_oldest, profile_newest);
 }
 
 // https://zig.guide/standard-library/filesystem/
@@ -121,9 +121,34 @@ test "make dir and read files" {
 }
 
 // https://renatoathaydes.github.io/zig-common-tasks/
-fn execute_process() !void {
+fn execute_process(profile1: u16, profile2: u16) !void {
+    // std.debug.print("profile1: {d}\n", .{profile1});
+    // std.debug.print("profile2: {d}\n", .{profile2});
+
+    var buf1: [50]u8 = undefined;
+    const profile_path1 = try std.fmt.bufPrint(&buf1, "{s}/{s}{d}{s}", .{
+        nixos_profiles_path,
+        profile_trim_left,
+        profile1,
+        profile_trim_right,
+    });
+    var buf2: [50]u8 = undefined;
+    const profile_path2 = try std.fmt.bufPrint(&buf2, "{s}/{s}{d}{s}", .{
+        nixos_profiles_path,
+        profile_trim_left,
+        profile2,
+        profile_trim_right,
+    });
+    std.debug.print("buf1: {s}\n", .{buf1});
+    std.debug.print("buf2: {s}\n", .{buf2});
+    std.debug.print("path1: {s}\n", .{profile_path1});
+    std.debug.print("path2: {s}\n", .{profile_path2});
+
     // the command to run
-    const argv = [_][]const u8{ "ls", "./" };
+    // const argv = [_][]const u8{ "ls", "./" };
+    // const argv = [_][]const u8{ "nix", "profile", "diff-closures", "--profile", "/nix/var/nix/profiles/system" };
+    // const argv = [_][]const u8{ "nix", "store", "diff-closures", "/run/booted-system", "/run/current-system" };
+    const argv = [_][]const u8{ "nix", "store", "diff-closures", profile_path1, profile_path2 };
 
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     const allocator = gpa.allocator();
