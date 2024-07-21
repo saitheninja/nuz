@@ -124,16 +124,17 @@ test "make dir and read files" {
 fn execute_process(profile1: u16, profile2: u16) !void {
     // nixos_profiles_path, // 22 bytes
     // profile_trim_left, // 7 bytes
-    // profile2, // 1 - ?? bytes
+    // profile2, // 1 - 5 bytes (u16 range: 0 - 65535)
     // profile_trim_right, // 5 bytes
-    var buf1: [50]u8 = undefined;
+    // total 39 bytes
+    var buf1: [40]u8 = undefined;
     const profile_path1 = try std.fmt.bufPrint(&buf1, "{s}{s}{d}{s}", .{
         nixos_profiles_path,
         profile_trim_left,
         profile1,
         profile_trim_right,
     });
-    var buf2: [50]u8 = undefined;
+    var buf2: [40]u8 = undefined;
     const profile_path2 = try std.fmt.bufPrint(&buf2, "{s}{s}{d}{s}", .{
         nixos_profiles_path,
         profile_trim_left,
