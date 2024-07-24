@@ -92,7 +92,7 @@ pub fn main() !void {
     try bw.flush();
     // std.debug.print("After flush.\n", .{});
 
-    try execute_process(profile_oldest, profile_newest);
+    try executeProcess(profile_oldest, profile_newest);
 }
 
 // https://zig.guide/standard-library/filesystem/
@@ -121,7 +121,7 @@ test "make dir and read files" {
 }
 
 // https://renatoathaydes.github.io/zig-common-tasks/
-fn execute_process(profile1: u16, profile2: u16) !void {
+fn executeProcess(profile1: u16, profile2: u16) !void {
     // nixos_profiles_path, // 22 bytes
     // profile_trim_left, // 7 bytes
     // profile2, // 1 - 5 bytes (u16 range: 0 - 65535)
