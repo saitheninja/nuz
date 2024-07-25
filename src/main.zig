@@ -1,17 +1,20 @@
 const std = @import("std");
 const expect = std.testing.expect;
+const expectError = std.testing.expectError;
 const test_allocator = std.testing.allocator;
 const openDirAbsolute = std.fs.openDirAbsolute;
 
-const nixos_profiles_path = "/nix/var/nix/profiles/";
 // current: `/nix/var/nix/profiles/system`
 // newest: `/nix/var/nix/profiles/system-{biggest-number}-link`
 // oldest: `/nix/var/nix/profiles/system-{smallest-number}-link`
 // `system` -> sym-link to current profile
 // `system-{number}-link` -> sym-link to `/nix/store/{...rest}`
+const nixos_profiles_path = "/nix/var/nix/profiles/";
+const nixos_profiles_current_path = nixos_profiles_path ++ "system";
 const profile_trim_left = "system-";
 const profile_trim_right = "-link";
 
+// sym-links to `/nix/store/{...rest}`
 const nixos_booted_system_path = "/run/booted-system";
 const nixos_current_system_path = "/run/current-system";
 
@@ -61,36 +64,27 @@ pub fn main() !void {
 
     var iter = profiles_dir.iterate();
     while (try iter.next()) |entry| {
-        if (entry.kind != .sym_link) {
-            continue; // jump to next iteration
-            // break; // break out of loop
-        }
+        if (entry.kind != .sym_link) continue;
+        // continue; // jump to next iteration
+        // break; // break out of loop
 
-        var created = entry.name;
-        // try bw_writer.print("entry.name: {s}\n", .{created});
-
-        if (!std.mem.startsWith(u8, created, profile_trim_left)) continue;
-        if (!std.mem.endsWith(u8, created, profile_trim_right)) continue;
-
-        created = std.mem.trimLeft(u8, created, profile_trim_left);
-        created = std.mem.trimRight(u8, created, profile_trim_right);
-        // try bw_writer.print("trimmed string: {s}\n", .{created});
-
-        const created_int = try std.fmt.parseUnsigned(u16, created, 10); // base 10
-        // try bw_writer.print("parsed uint: {d}\n", .{created_int});
-
-        if (created_int > profile_newest) {
-            profile_newest = created_int;
-        } else if (created_int < profile_oldest) {
-            profile_oldest = created_int;
+        const gen_no = parseGenNoFromProfilePath(entry.name) catch continue;
+        if (gen_no > profile_newest) {
+            profile_newest = gen_no;
+        } else if (gen_no < profile_oldest) {
+            profile_oldest = gen_no;
         }
     }
 
-    try bw_writer.print("oldest profile: {d}\n", .{profile_oldest});
-    try bw_writer.print("newest profile: {d}\n", .{profile_newest});
+    try bw_writer.print("oldest gen: {d}\n", .{profile_oldest});
+    try bw_writer.print("newest gen: {d}\n", .{profile_newest});
 
+    var buf: [40]u8 = undefined;
+    const buf_current = try profiles_dir.readLink("system", &buf);
+    const profile_current = try parseGenNoFromProfilePath(buf_current);
+
+    try bw_writer.print("current gen: {d}\n", .{profile_current});
     try bw.flush();
-    // std.debug.print("After flush.\n", .{});
 
     try executeProcess(profile_oldest, profile_newest);
 }
@@ -128,13 +122,13 @@ fn executeProcess(profile1: u16, profile2: u16) !void {
     // profile_trim_right, // 5 bytes
     // total 39 bytes
     var buf1: [40]u8 = undefined;
+    var buf2: [40]u8 = undefined;
     const profile_path1 = try std.fmt.bufPrint(&buf1, "{s}{s}{d}{s}", .{
         nixos_profiles_path,
         profile_trim_left,
         profile1,
         profile_trim_right,
     });
-    var buf2: [40]u8 = undefined;
     const profile_path2 = try std.fmt.bufPrint(&buf2, "{s}{s}{d}{s}", .{
         nixos_profiles_path,
         profile_trim_left,
@@ -179,4 +173,24 @@ fn executeProcess(profile1: u16, profile2: u16) !void {
     // defer alloc.free(proc.stderr);
     //
     // const term = proc.term;
+}
+
+/// Parse profile path "system-{generation_number}-link" and return generation_number.
+fn parseGenNoFromProfilePath(dir_path: []const u8) !u16 {
+    if (!std.mem.startsWith(u8, dir_path, profile_trim_left)) return error.InvalidProfilePath;
+    if (!std.mem.endsWith(u8, dir_path, profile_trim_right)) return error.InvalidProfilePath;
+
+    var dir_path_trimmed = dir_path;
+    dir_path_trimmed = std.mem.trimLeft(u8, dir_path_trimmed, profile_trim_left);
+    dir_path_trimmed = std.mem.trimRight(u8, dir_path_trimmed, profile_trim_right);
+
+    const generation_no = try std.fmt.parseUnsigned(u16, dir_path_trimmed, 10); // base 10
+    return generation_no;
+}
+test "parse generation number from profile path" {
+    const number: u16 = try parseGenNoFromProfilePath("system-100-link");
+    try expect(number == 100);
+}
+test "throw error if wrong path" {
+    try expectError(error.InvalidProfilePath, parseGenNoFromProfilePath("some-random-path"));
 }
