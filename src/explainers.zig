@@ -2,6 +2,13 @@ const std = @import("std");
 const expect = std.testing.expect;
 const test_allocator = std.testing.allocator;
 
+export fn add(a: i32, b: i32) i32 {
+    return a + b;
+}
+test "basic add functionality" {
+    try expect(add(3, 7) == 10);
+}
+
 fn explain_strings() !void {
     // a string is a slice of bytes
     // 1 byte = 8 bits, so type is u8 - unsigned 8-bit integer
