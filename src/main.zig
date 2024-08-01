@@ -88,6 +88,7 @@ pub fn main() !void {
     try bw.flush();
 
     try diffBootedCurrent();
+    try diffProfilesAll();
     try diffProfiles(profile_oldest, profile_newest);
 }
 
@@ -131,28 +132,27 @@ fn diffBootedCurrent() !void {
     var proc = std.process.Child.init(&argv, allocator);
     try proc.spawn();
 
-    // clean up
-    // the process only ends after this call returns
-    const terminated_state = try proc.wait();
-    std.debug.print("terminated state: {any}\n", .{terminated_state});
-
+    // `run` spawns a child process, waits for it, collecting stdout and stderr, and then returns.
+    // If it succeeds, the caller owns result.stdout and result.stderr memory.
+    // const proc = try std.process.Child.run(.{
+    //     .allocator = allocator,
+    //     .argv = &argv,
+    // });
+    // returns `RunResult` on success, which has term, stdout, stderr
+    // const term = proc.term;
+    // defer allocator.free(proc.stdout);
+    // defer allocator.free(proc.stderr);
+    //
+    // `term` is the terminated state of the child process
     // term can be .Exited, .Signal, .Stopped, .Unknown
     // try std.testing.expectEqual(term, std.process.Child.Term{ .Exited = 0 });
 
-    // const proc = try std.process.Child.run(.{
-    //     .allocator = alloc,
-    //     .argv = &argv,
-    // });
-
-    // consume stdout and stderr into allocated memory
-    // on success, we own the output streams
-    // defer alloc.free(proc.stdout);
-    // defer alloc.free(proc.stderr);
-    //
-    // const term = proc.term;
+    // Blocks until child process terminates and then cleans up all resources.
+    const terminated_state = try proc.wait();
+    std.debug.print("diffBootedCurrent terminated state: {any}\n", .{terminated_state});
 }
 
-/// Print diff of two profile closures, given their generation numbers.
+/// Print diff between two profile closures, given their generation numbers.
 fn diffProfiles(profile1: u16, profile2: u16) !void {
     // nixos_profiles_path, // 22 bytes
     // profile_trim_left, // 7 bytes
@@ -187,7 +187,21 @@ fn diffProfiles(profile1: u16, profile2: u16) !void {
     try proc.spawn();
 
     const terminated_state = try proc.wait();
-    std.debug.print("terminated state: {any}\n", .{terminated_state});
+    std.debug.print("diffProfiles terminated state: {any}\n", .{terminated_state});
+}
+
+/// Print diffs between each generation of profile closure.
+fn diffProfilesAll() !void {
+    const argv = [_][]const u8{ "nix", "profile", "diff-closures", "--profile", "/nix/var/nix/profiles/system" };
+
+    var gpa: std.heap.GeneralPurposeAllocator(.{}) = .{};
+    const allocator = gpa.allocator();
+
+    var proc = std.process.Child.init(&argv, allocator);
+    try proc.spawn();
+
+    const terminated_state = try proc.wait();
+    std.debug.print("diffProfilesAll terminated state: {any}\n", .{terminated_state});
 }
 
 /// Parse profile path "system-{generation_number}-link" and return generation_number.
