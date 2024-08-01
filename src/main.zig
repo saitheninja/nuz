@@ -55,10 +55,10 @@ pub fn main() !void {
     };
     defer profiles_dir.close();
 
-    // u8 range: 0-255
-    // u16 range: 0-65535
-    // u32 range: 0-4294967295
-    // u64 range: 0-18446744073709551615
+    // u8  range: 0 to 255
+    // u16 range: 0 to 65535
+    // u32 range: 0 to 4294967295
+    // u64 range: 0 to 18446744073709551615
     var profile_newest: u16 = 0;
     var profile_oldest: u16 = 65535;
 
@@ -155,7 +155,7 @@ fn diffBootedCurrent() !void {
 fn diffProfiles(profile1: u16, profile2: u16) !void {
     // nixos_profiles_path, // 22 bytes
     // profile_trim_left, // 7 bytes
-    // profile2, // 1 - 5 bytes (u16 range: 0 - 65535)
+    // profile2, // 1 to 5 bytes (u16 range: 0 to 65535)
     // profile_trim_right, // 5 bytes
     // total 39 bytes
     var buf1: [40]u8 = undefined;
