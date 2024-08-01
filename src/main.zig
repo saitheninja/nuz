@@ -86,7 +86,8 @@ pub fn main() !void {
     try bw_writer.print("current gen: {d}\n", .{profile_current});
     try bw.flush();
 
-    try executeProcess(profile_oldest, profile_newest);
+    try diffBootedCurrent();
+    try diffProfiles(profile_oldest, profile_newest);
 }
 
 // https://zig.guide/standard-library/filesystem/
@@ -115,7 +116,43 @@ test "make dir and read files" {
 }
 
 // https://renatoathaydes.github.io/zig-common-tasks/
-fn executeProcess(profile1: u16, profile2: u16) !void {
+/// Print diff of booted profile closure with current profile closure.
+fn diffBootedCurrent() !void {
+    // argument vector, i.e. the command to run
+    // const argv = [_][]const u8{ "ls", "./" };
+    // const argv = [_][]const u8{ "nix", "profile", "diff-closures", "--profile", "/nix/var/nix/profiles/system" };
+    const argv = [_][]const u8{ "nix", "store", "diff-closures", "/run/booted-system", "/run/current-system" };
+
+    var gpa: std.heap.GeneralPurposeAllocator(.{}) = .{};
+    const allocator = gpa.allocator();
+
+    // start a child process
+    var proc = std.process.Child.init(&argv, allocator);
+    try proc.spawn();
+
+    // clean up
+    // the process only ends after this call returns
+    const terminated_state = try proc.wait();
+    std.debug.print("terminated state: {any}\n", .{terminated_state});
+
+    // term can be .Exited, .Signal, .Stopped, .Unknown
+    // try std.testing.expectEqual(term, std.process.Child.Term{ .Exited = 0 });
+
+    // const proc = try std.process.Child.run(.{
+    //     .allocator = alloc,
+    //     .argv = &argv,
+    // });
+
+    // consume stdout and stderr into allocated memory
+    // on success, we own the output streams
+    // defer alloc.free(proc.stdout);
+    // defer alloc.free(proc.stderr);
+    //
+    // const term = proc.term;
+}
+
+/// Print diff of two profile closures, given their generation numbers.
+fn diffProfiles(profile1: u16, profile2: u16) !void {
     // nixos_profiles_path, // 22 bytes
     // profile_trim_left, // 7 bytes
     // profile2, // 1 - 5 bytes (u16 range: 0 - 65535)
@@ -140,39 +177,16 @@ fn executeProcess(profile1: u16, profile2: u16) !void {
     // std.debug.print("path1: {s}\n", .{profile_path1});
     // std.debug.print("path2: {s}\n", .{profile_path2});
 
-    // the command to run
-    // const argv = [_][]const u8{ "ls", "./" };
-    // const argv = [_][]const u8{ "nix", "profile", "diff-closures", "--profile", "/nix/var/nix/profiles/system" };
-    // const argv = [_][]const u8{ "nix", "store", "diff-closures", "/run/booted-system", "/run/current-system" };
     const argv = [_][]const u8{ "nix", "store", "diff-closures", profile_path1, profile_path2 };
 
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    var gpa: std.heap.GeneralPurposeAllocator(.{}) = .{};
     const allocator = gpa.allocator();
 
-    // init a child process
     var proc = std.process.Child.init(&argv, allocator);
     try proc.spawn();
 
-    // clean up
-    // the process only ends after this call returns
-    // const term = try proc.wait();
     const terminated_state = try proc.wait();
     std.debug.print("terminated state: {any}\n", .{terminated_state});
-
-    // term can be .Exited, .Signal, .Stopped, .Unknown
-    // try std.testing.expectEqual(term, std.process.Child.Term{ .Exited = 0 });
-
-    // const proc = try std.process.Child.run(.{
-    //     .allocator = alloc,
-    //     .argv = &argv,
-    // });
-
-    // consume stdout and stderr into allocated memory
-    // on success, we own the output streams
-    // defer alloc.free(proc.stdout);
-    // defer alloc.free(proc.stderr);
-    //
-    // const term = proc.term;
 }
 
 /// Parse profile path "system-{generation_number}-link" and return generation_number.
