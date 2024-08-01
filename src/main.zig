@@ -40,6 +40,7 @@ const usage =
     \\  diff -b, --boot     Diff closures of booted -> current
     \\  diff --old=[number] --new=[number]  Diff closures of oldest -> newest
     \\
+    \\  pkgs                List all installed packages
 ;
 
 pub fn main() !void {
