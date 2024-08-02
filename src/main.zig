@@ -108,8 +108,8 @@ pub fn main() !void {
     try bw.flush();
 
     try diffBootedCurrent();
-    try diffProfilesAll();
-    try diffProfiles(profile_oldest, profile_newest);
+    // try diffProfilesAll();
+    try diffProfiles(profile_newest - 1, profile_newest);
 }
 
 // https://zig.guide/standard-library/filesystem/
