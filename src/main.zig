@@ -15,8 +15,8 @@ const profile_trim_left = "system-";
 const profile_trim_right = "-link";
 
 // sym-links to `/nix/store/{...rest}`
-const nixos_booted_system_path = "/run/booted-system";
-const nixos_current_system_path = "/run/current-system";
+// const nixos_booted_system_path = "/run/booted-system";
+// const nixos_current_system_path = "/run/current-system";
 
 // https://nix.dev/manual/nix/2.22/command-ref/new-cli/nix3-profile-diff-closures
 // show diffs of all profiles:
@@ -50,12 +50,6 @@ pub fn main() !void {
     var bw = std.io.bufferedWriter(stdout_writer);
     const bw_writer = bw.writer();
 
-    var profiles_dir = openDirAbsolute(nixos_profiles_path, .{ .iterate = true }) catch |err| {
-        std.debug.print("unable to open profiles directory '{s}': {s}\n", .{ nixos_profiles_path, @errorName(err) });
-        std.process.exit(1); // exit with error
-    };
-    defer profiles_dir.close();
-
     // u8  range: 0 to 255
     // u16 range: 0 to 65535
     // u32 range: 0 to 4294967295
@@ -63,13 +57,20 @@ pub fn main() !void {
     var profile_newest: u16 = 0;
     var profile_oldest: u16 = 65535;
 
-    var iter = profiles_dir.iterate();
+    var dir_profiles = openDirAbsolute(nixos_profiles_path, .{ .iterate = true }) catch |err| {
+        std.debug.print("unable to open profiles directory '{s}': {s}\n", .{ nixos_profiles_path, @errorName(err) });
+        std.process.exit(1); // exit with error
+    };
+    defer dir_profiles.close();
+
+    var iter = dir_profiles.iterate();
     while (try iter.next()) |entry| {
-        if (entry.kind != .sym_link) continue;
-        // continue; // jump to next iteration
+        if (entry.kind != .sym_link) continue; // jump to next iteration of loop
         // break; // break out of loop
 
+        // if dir name does not contain a number, go to next dir
         const gen_no = parseGenNoFromProfilePath(entry.name) catch continue;
+
         if (gen_no > profile_newest) {
             profile_newest = gen_no;
         } else if (gen_no < profile_oldest) {
@@ -80,11 +81,30 @@ pub fn main() !void {
     try bw_writer.print("oldest gen: {d}\n", .{profile_oldest});
     try bw_writer.print("newest gen: {d}\n", .{profile_newest});
 
-    var buf: [40]u8 = undefined;
-    const buf_current = try profiles_dir.readLink("system", &buf);
-    const profile_current = try parseGenNoFromProfilePath(buf_current);
+    var buf_current_profile: [40]u8 = undefined;
+    const slice_current_profile = try dir_profiles.readLink("system", &buf_current_profile);
+    const profile_current = try parseGenNoFromProfilePath(slice_current_profile);
 
     try bw_writer.print("current gen: {d}\n", .{profile_current});
+
+    var dir_run = try openDirAbsolute("/run", .{});
+    defer dir_run.close();
+
+    var buf_booted_store: [100]u8 = undefined;
+    var buf_current_store: [100]u8 = undefined;
+    const slice_booted_store = try dir_run.readLink("booted-system", &buf_booted_store);
+    const slice_current_store = try dir_run.readLink("current-system", &buf_current_store);
+
+    try bw_writer.print("booted store: {s}\n", .{slice_booted_store});
+    try bw_writer.print("current store: {s}\n", .{slice_current_store});
+
+    if (std.mem.eql(u8, slice_booted_store, slice_current_store)) {
+        try bw_writer.print("booted same as current\n", .{});
+    } else {
+        try bw_writer.print("booted different from current\n", .{});
+    }
+    // TODO figure out profile numbers of booted and current (compare creation times?)
+
     try bw.flush();
 
     try diffBootedCurrent();
