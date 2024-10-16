@@ -44,9 +44,11 @@ const usage =
 ;
 
 pub fn main() !void {
+    // for printing to stdout
     const stdout_file_handle = std.io.getStdOut();
     const stdout_writer = stdout_file_handle.writer();
 
+    // buffer to flush to stdout
     var bw = std.io.bufferedWriter(stdout_writer);
     const bw_writer = bw.writer();
 
@@ -57,6 +59,7 @@ pub fn main() !void {
     var profile_newest: u16 = 0;
     var profile_oldest: u16 = 65535;
 
+    // open profiles dir
     var dir_profiles = openDirAbsolute(nixos_profiles_path, .{ .iterate = true }) catch |err| {
         std.debug.print("unable to open profiles directory '{s}': {s}\n", .{ nixos_profiles_path, @errorName(err) });
         std.process.exit(1); // exit with error
@@ -81,6 +84,7 @@ pub fn main() !void {
     try bw_writer.print("oldest gen: {d}\n", .{profile_oldest});
     try bw_writer.print("newest gen: {d}\n", .{profile_newest});
 
+    // get current, booted profiles
     var buf_current_profile: [40]u8 = undefined;
     const slice_current_profile = try dir_profiles.readLink("system", &buf_current_profile);
     const profile_current = try parseGenNoFromProfilePath(slice_current_profile);
@@ -113,8 +117,11 @@ pub fn main() !void {
 }
 
 // https://zig.guide/standard-library/filesystem/
-test "make dir and read files" {
+test "make dir, make files, read files from dir" {
+    // make dir
     try std.fs.cwd().makeDir("test-tmp");
+
+    // open dir
     var iter_dir = try std.fs.cwd().openDir(
         "test-tmp",
         .{ .iterate = true },
@@ -124,17 +131,44 @@ test "make dir and read files" {
         std.fs.cwd().deleteTree("test-tmp") catch unreachable;
     }
 
+    // make files in dir
     _ = try iter_dir.createFile("x", .{});
     _ = try iter_dir.createFile("y", .{});
     _ = try iter_dir.createFile("z", .{});
 
+    // count files in dir
     var file_count: usize = 0;
     var iter = iter_dir.iterate();
     while (try iter.next()) |entry| {
         if (entry.kind == .file) file_count += 1;
     }
 
+    // check expected count against actual count
     try expect(file_count == 3);
+}
+
+/// Parse profile path "system-{generation_number}-link" and return generation_number.
+fn parseGenNoFromProfilePath(dir_path: []const u8) !u16 {
+    // check if valid path
+    if (!std.mem.startsWith(u8, dir_path, profile_trim_left)) return error.InvalidProfilePath;
+    if (!std.mem.endsWith(u8, dir_path, profile_trim_right)) return error.InvalidProfilePath;
+
+    // trim path
+    var dir_path_trimmed = dir_path;
+    dir_path_trimmed = std.mem.trimLeft(u8, dir_path_trimmed, profile_trim_left);
+    dir_path_trimmed = std.mem.trimRight(u8, dir_path_trimmed, profile_trim_right);
+
+    // parse trimmed string as integer (base 10)
+    const generation_no = try std.fmt.parseUnsigned(u16, dir_path_trimmed, 10);
+
+    return generation_no;
+}
+test "parse generation number from profile path" {
+    const number: u16 = try parseGenNoFromProfilePath("system-100-link");
+    try expect(number == 100);
+}
+test "throw error if wrong path" {
+    try expectError(error.InvalidProfilePath, parseGenNoFromProfilePath("some-random-path"));
 }
 
 // https://renatoathaydes.github.io/zig-common-tasks/
@@ -174,6 +208,8 @@ fn diffBootedCurrent() !void {
 
 /// Print diff between two profile closures, given their generation numbers.
 fn diffProfiles(profile1: u16, profile2: u16) !void {
+    // parse paths
+    //
     // nixos_profiles_path, // 22 bytes
     // profile_trim_left, // 7 bytes
     // profile2, // 1 to 5 bytes (u16 range: 0 to 65535)
@@ -198,14 +234,18 @@ fn diffProfiles(profile1: u16, profile2: u16) !void {
     // std.debug.print("path1: {s}\n", .{profile_path1});
     // std.debug.print("path2: {s}\n", .{profile_path2});
 
+    // construct shell command
     const argv = [_][]const u8{ "nix", "store", "diff-closures", profile_path1, profile_path2 };
 
+    // allocate memory for shell command
     var gpa: std.heap.GeneralPurposeAllocator(.{}) = .{};
     const allocator = gpa.allocator();
 
+    // run shell command
     var proc = std.process.Child.init(&argv, allocator);
     try proc.spawn();
 
+    // clean up shell command
     const terminated_state = try proc.wait();
     std.debug.print("diffProfiles terminated state: {any}\n", .{terminated_state});
 }
@@ -222,24 +262,4 @@ fn diffProfilesAll() !void {
 
     const terminated_state = try proc.wait();
     std.debug.print("diffProfilesAll terminated state: {any}\n", .{terminated_state});
-}
-
-/// Parse profile path "system-{generation_number}-link" and return generation_number.
-fn parseGenNoFromProfilePath(dir_path: []const u8) !u16 {
-    if (!std.mem.startsWith(u8, dir_path, profile_trim_left)) return error.InvalidProfilePath;
-    if (!std.mem.endsWith(u8, dir_path, profile_trim_right)) return error.InvalidProfilePath;
-
-    var dir_path_trimmed = dir_path;
-    dir_path_trimmed = std.mem.trimLeft(u8, dir_path_trimmed, profile_trim_left);
-    dir_path_trimmed = std.mem.trimRight(u8, dir_path_trimmed, profile_trim_right);
-
-    const generation_no = try std.fmt.parseUnsigned(u16, dir_path_trimmed, 10); // base 10
-    return generation_no;
-}
-test "parse generation number from profile path" {
-    const number: u16 = try parseGenNoFromProfilePath("system-100-link");
-    try expect(number == 100);
-}
-test "throw error if wrong path" {
-    try expectError(error.InvalidProfilePath, parseGenNoFromProfilePath("some-random-path"));
 }
