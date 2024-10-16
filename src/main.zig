@@ -52,13 +52,6 @@ pub fn main() !void {
     var bw = std.io.bufferedWriter(stdout_writer);
     const bw_writer = bw.writer();
 
-    // u8  range: 0 to 255
-    // u16 range: 0 to 65535
-    // u32 range: 0 to 4294967295
-    // u64 range: 0 to 18446744073709551615
-    var profile_newest: u16 = 0;
-    var profile_oldest: u16 = 65535;
-
     // open profiles dir
     var dir_profiles = openDirAbsolute(nixos_profiles_path, .{ .iterate = true }) catch |err| {
         std.debug.print("unable to open profiles directory '{s}': {s}\n", .{ nixos_profiles_path, @errorName(err) });
@@ -66,21 +59,17 @@ pub fn main() !void {
     };
     defer dir_profiles.close();
 
-    var iter = dir_profiles.iterate();
-    while (try iter.next()) |entry| {
-        if (entry.kind != .sym_link) continue; // jump to next iteration of loop
-        // break; // break out of loop
-
-        // if dir name does not contain a number, go to next dir
-        const gen_no = parseGenNoFromProfilePath(entry.name) catch continue;
-
-        if (gen_no > profile_newest) {
-            profile_newest = gen_no;
-        } else if (gen_no < profile_oldest) {
-            profile_oldest = gen_no;
-        }
+    // get generation numbers
+    const profiles_list = try parseProfileDir(dir_profiles);
+    if (profiles_list.len < 1) {
+        std.debug.print("No profiles found.\n", .{});
+        return;
     }
 
+    const profile_oldest = profiles_list[0];
+    const profile_newest = profiles_list[profiles_list.len - 1];
+
+    try bw_writer.print("all generations: {any}\n", .{profiles_list});
     try bw_writer.print("oldest gen: {d}\n", .{profile_oldest});
     try bw_writer.print("newest gen: {d}\n", .{profile_newest});
 
@@ -169,6 +158,35 @@ test "parse generation number from profile path" {
 }
 test "throw error if wrong path" {
     try expectError(error.InvalidProfilePath, parseGenNoFromProfilePath("some-random-path"));
+}
+
+/// Return slice of generation numbers, in ascending order.
+fn parseProfileDir(dir_profiles: std.fs.Dir) ![]u16 {
+    var gpa: std.heap.GeneralPurposeAllocator(.{}) = .{};
+    const allocator = gpa.allocator();
+
+    // u8  range: 0 to 255
+    // u16 range: 0 to 65535
+    // u32 range: 0 to 4294967295
+    // u64 range: 0 to 18446744073709551615
+    var profiles_list = std.ArrayList(u16).init(allocator);
+    defer profiles_list.deinit();
+
+    var iter = dir_profiles.iterate();
+    while (try iter.next()) |entry| {
+        if (entry.kind != .sym_link) continue; // jump to next iteration of loop
+        // break; // break out of loop
+
+        // if dir name does not contain a number, go to next dir
+        const gen_no = parseGenNoFromProfilePath(entry.name) catch continue;
+
+        try profiles_list.append(gen_no);
+    }
+
+    const slice = try profiles_list.toOwnedSlice();
+    std.mem.sort(u16, slice, {}, comptime std.sort.asc(u16));
+
+    return slice;
 }
 
 // https://renatoathaydes.github.io/zig-common-tasks/
